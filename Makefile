@@ -64,7 +64,7 @@ srpm: .srpm-done
 
 .rpm-done: sources.tgz
 	test -e SOURCES || ln -s . SOURCES
-	rpmbuild --define "%_topdir $(PWD)" -bb ecs-init.spec
+	rpmbuild --define "%_topdir $(PWD)" --with systemd -bb ecs-init.spec
 	find RPMS/ -type f -exec cp {} . \;
 	touch .rpm-done
 
