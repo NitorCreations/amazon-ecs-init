@@ -53,7 +53,7 @@ Requires:       systemd
 Requires:       upstart
 %endif
 Requires:       iptables
-Requires:       docker >= 17.06.2ce
+Requires:       docker-ce >= 18.09.6
 Requires:       procps
 
 # The following 'Provides' lists the vendored dependencies bundled in
