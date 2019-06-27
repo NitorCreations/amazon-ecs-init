@@ -298,7 +298,7 @@ fi
 * Thu Nov 15 2018 Jacob Vallejo <jakeev@amazon.com> - 1.22.0-3
 - Rebuild
 
-* Thu Nov 2 2018 Yunhee Lee <yhlee@amazon.com> - 1.22.0-2
+* Fri Nov 2 2018 Yunhee Lee <yhlee@amazon.com> - 1.22.0-2
 - Cache Agent version 1.22.0
 
 * Thu Oct 11 2018 Sharanya Devaraj <sharanyd@amazon.com> - 1.21.0-1
@@ -312,10 +312,10 @@ fi
 * Thu Aug 30 2018 Feng Xiong <fenxiong@amazon.com> - 1.20.2-1
 - Cache Agent version 1.20.2
 
-* Thu Aug 08 2018 Peng Yin <penyin@amazon.com> - 1.20.1-1
+* Wed Aug 08 2018 Peng Yin <penyin@amazon.com> - 1.20.1-1
 - Cache Agent version 1.20.1
 
-* Thu Aug 01 2018 Haikuo Liu <haikuo@amazon.com> - 1.20.0-1
+* Wed Aug 01 2018 Haikuo Liu <haikuo@amazon.com> - 1.20.0-1
 - Cache Agent version 1.20.0
 
 * Thu Jul 26 2018 Haikuo Liu <haikuo@amazon.com> - 1.19.1-1
