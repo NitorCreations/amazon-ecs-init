@@ -260,10 +260,7 @@ func (c *Client) getContainerConfig(envVarsFromFiles map[string]string) *godocke
 		"ECS_ENABLE_TASK_IAM_ROLE":              "true",
 		"ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST": "true",
 		"ECS_AGENT_LABELS":                      "",
-<<<<<<< HEAD
-=======
 		"ECS_VOLUME_PLUGIN_CAPABILITIES":        `["efsAuth"]`,
->>>>>>> upstream/master
 	}
 
 	// for al, al2 add host ssl cert directory envvar if available
@@ -366,17 +363,8 @@ func generateLabelMap(jsonBlock string) (map[string]string, error) {
 	return out, err
 }
 
-<<<<<<< HEAD
-func (c *Client) getHostConfig() *godocker.HostConfig {
-	dockerEndpointAgent := defaultDockerEndpoint
-	dockerUnixSocketSourcePath, fromEnv := config.DockerUnixSocket()
-	if fromEnv {
-		dockerEndpointAgent = "/var/run/docker.sock"
-	}
-=======
 func (c *Client) getHostConfig(envVarsFromFiles map[string]string) *godocker.HostConfig {
 	dockerSocketBind := getDockerSocketBind(envVarsFromFiles)
->>>>>>> upstream/master
 
 	binds := []string{
 		dockerSocketBind,

@@ -278,8 +278,6 @@ fi
 %endif
 
 %changelog
-<<<<<<< HEAD
-=======
 * Wed Sep 02 2020 Meghna Srivastav  <mssrivas@amazon.com> - 1.44.3-1
 - Cache Agent version 1.44.3
 
@@ -344,7 +342,6 @@ fi
 - Cache Agent version 1.33.0
 - Fix destination path in docker socket bind mount to match the one specified using DOCKER_HOST on Amazon Linux 2
 
->>>>>>> upstream/master
 * Mon Oct 28 2019 Shubham Goyal <shugy@amazon.com> - 1.32.1-1
 - Cache Agent version 1.32.1
 - Add the ability to set Agent container's labels
@@ -405,11 +402,7 @@ fi
 * Thu Nov 15 2018 Jacob Vallejo <jakeev@amazon.com> - 1.22.0-3
 - Rebuild
 
-<<<<<<< HEAD
-* Fri Nov 2 2018 Yunhee Lee <yhlee@amazon.com> - 1.22.0-2
-=======
 * Fri Nov 02 2018 Yunhee Lee <yhlee@amazon.com> - 1.22.0-2
->>>>>>> upstream/master
 - Cache Agent version 1.22.0
 
 * Thu Oct 11 2018 Sharanya Devaraj <sharanyd@amazon.com> - 1.21.0-1
@@ -423,11 +416,7 @@ fi
 * Fri Aug 31 2018 Feng Xiong <fenxiong@amazon.com> - 1.20.2-1
 - Cache Agent version 1.20.2
 
-<<<<<<< HEAD
-* Wed Aug 08 2018 Peng Yin <penyin@amazon.com> - 1.20.1-1
-=======
 * Thu Aug 09 2018 Peng Yin <penyin@amazon.com> - 1.20.1-1
->>>>>>> upstream/master
 - Cache Agent version 1.20.1
 
 * Wed Aug 01 2018 Haikuo Liu <haikuo@amazon.com> - 1.20.0-1
