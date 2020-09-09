@@ -164,7 +164,9 @@ ecs-init supports the initialization and supervision of the Amazon ECS
 container agent, including configuration of cgroups, iptables, and
 required routes among its preparation steps.
 
+%global debug_package %{nil}
 %prep
+%global debug_package %{nil}
 %setup -c
 
 %build
