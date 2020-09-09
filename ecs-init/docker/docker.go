@@ -14,6 +14,7 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"path/filepath"
@@ -44,7 +45,9 @@ const (
 	hostProcDir = "/host/proc"
 	// defaultDockerEndpoint is set to /var/run instead of /var/run/docker.sock
 	// in case /var/run/docker.sock is deleted and recreated outside the container
-	defaultDockerEndpoint = "/var/run"
+	defaultDockerEndpoint   = "/var/run"
+	defaultDockerSocketPath = "/var/run/docker.sock"
+
 	// networkMode specifies the networkmode to create the agent container
 	networkMode = "host"
 	// usernsMode specifies the userns mode to create the agent container
@@ -85,9 +88,16 @@ const (
 	// pluginSpecFilesUsrDir specifies one of the locations of spec or json files
 	// of Docker plugins
 	pluginSpecFilesUsrDir = "/usr/lib/docker/plugins"
-	// iptablesExecutableDir specifies the location of the iptable
-	// executable on the host and in the Agent container
-	iptablesExecutableDir = "/sbin"
+	// iptablesExecutableHostDir specifies the location of the iptable
+	// executable on the host
+	iptablesExecutableHostDir = "/sbin"
+	// iptablesExecutableHostDir specifies the location of the iptable
+	// executable inside container.
+	iptablesExecutableContainerDir = "/host/sbin"
+	// iptablesAltDir specifies the location of iptables alternatives
+	iptablesAltDir = "/etc/alternatives"
+	// legacyDir holds the location of legacy iptables
+	iptablesLegacyDir = "/usr/sbin"
 
 	// the following libDirs  specify the location of shared libraries on the
 	// host and in the Agent container required for the execution of the iptables
@@ -194,11 +204,13 @@ func (c *Client) findAgentContainer() (string, error) {
 
 // StartAgent starts the Agent in Docker and returns the exit code from the container
 func (c *Client) StartAgent() (int, error) {
-	hostConfig := c.getHostConfig()
+	envVarsFromFiles := c.LoadEnvVars()
+
+	hostConfig := c.getHostConfig(envVarsFromFiles)
 
 	container, err := c.docker.CreateContainer(godocker.CreateContainerOptions{
 		Name:       config.AgentContainerName,
-		Config:     c.getContainerConfig(),
+		Config:     c.getContainerConfig(envVarsFromFiles),
 		HostConfig: hostConfig,
 	})
 	if err != nil {
@@ -211,7 +223,32 @@ func (c *Client) StartAgent() (int, error) {
 	return c.docker.WaitContainer(container.ID)
 }
 
-func (c *Client) getContainerConfig() *godocker.Config {
+// GetContainerLogTail will return the last logWindowSize lines of logs for
+// the Agent Container.
+func (c *Client) GetContainerLogTail(logWindowSize string) string {
+	containerToLog, _ := c.findAgentContainer()
+	if containerToLog == "" {
+		log.Info("No existing container to take logs from.")
+		return ""
+	}
+	// we want to capture some logs from our removed containers in case of failure
+	var containerLogBuf bytes.Buffer
+	err := c.docker.Logs(godocker.LogsOptions{
+		Container:    containerToLog,
+		OutputStream: &containerLogBuf,
+		Stdout:       true,
+		Stderr:       true,
+		Tail:         logWindowSize,
+		Timestamps:   true,
+	})
+	// we're ok if grabbing the container's logs fails
+	if err != nil {
+		log.Infof("Unable to tail logs for container ID: %s", containerToLog)
+	}
+	return containerLogBuf.String()
+}
+
+func (c *Client) getContainerConfig(envVarsFromFiles map[string]string) *godocker.Config {
 	// default environment variables
 	envVariables := map[string]string{
 		"ECS_LOGFILE":                           logDir + "/" + config.AgentLogFile,
@@ -223,6 +260,10 @@ func (c *Client) getContainerConfig() *godocker.Config {
 		"ECS_ENABLE_TASK_IAM_ROLE":              "true",
 		"ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST": "true",
 		"ECS_AGENT_LABELS":                      "",
+<<<<<<< HEAD
+=======
+		"ECS_VOLUME_PLUGIN_CAPABILITIES":        `["efsAuth"]`,
+>>>>>>> upstream/master
 	}
 
 	// for al, al2 add host ssl cert directory envvar if available
@@ -235,9 +276,7 @@ func (c *Client) getContainerConfig() *godocker.Config {
 		envVariables[envKey] = envValue
 	}
 
-	envVars := c.LoadEnvVars()
-
-	for key, val := range envVars {
+	for key, val := range envVarsFromFiles {
 		envVariables[key] = val
 	}
 
@@ -327,15 +366,20 @@ func generateLabelMap(jsonBlock string) (map[string]string, error) {
 	return out, err
 }
 
+<<<<<<< HEAD
 func (c *Client) getHostConfig() *godocker.HostConfig {
 	dockerEndpointAgent := defaultDockerEndpoint
 	dockerUnixSocketSourcePath, fromEnv := config.DockerUnixSocket()
 	if fromEnv {
 		dockerEndpointAgent = "/var/run/docker.sock"
 	}
+=======
+func (c *Client) getHostConfig(envVarsFromFiles map[string]string) *godocker.HostConfig {
+	dockerSocketBind := getDockerSocketBind(envVarsFromFiles)
+>>>>>>> upstream/master
 
 	binds := []string{
-		dockerUnixSocketSourcePath + ":" + dockerEndpointAgent,
+		dockerSocketBind,
 		config.LogDirectory() + ":" + logDir,
 		config.AgentDataDirectory() + ":" + dataDir,
 		config.AgentConfigDirectory() + ":" + config.AgentConfigDirectory(),
@@ -364,6 +408,37 @@ func (c *Client) getHostConfig() *godocker.HostConfig {
 	return createHostConfig(binds)
 }
 
+// getDockerSocketBind returns the bind for Docker socket.
+// Value for the bind is as follow:
+// 1. DOCKER_HOST (as in os.Getenv) not set: source /var/run, dest /var/run
+// 2. DOCKER_HOST (as in os.Getenv) set: source DOCKER_HOST (as in os.Getenv, trim unix:// prefix),
+//   dest DOCKER_HOST (as in /etc/ecs/ecs.config, trim unix:// prefix)
+//
+// On AL2, the value from os.Getenv is the same as the one from /etc/ecs/ecs.config, but on AL1 they might be different, which
+// is why I distinguish the two.
+func getDockerSocketBind(envVarsFromFiles map[string]string) string {
+	dockerEndpointAgent := defaultDockerEndpoint
+	dockerUnixSocketSourcePath, fromEnv := config.DockerUnixSocket()
+	if fromEnv {
+		if dockerEndpointFromConfig, ok := envVarsFromFiles[config.DockerHostEnvVar]; ok && strings.HasPrefix(dockerEndpointFromConfig, config.UnixSocketPrefix) {
+			dockerEndpointAgent = strings.TrimPrefix(dockerEndpointFromConfig, config.UnixSocketPrefix)
+		} else {
+			dockerEndpointAgent = defaultDockerSocketPath
+		}
+	}
+
+	return dockerUnixSocketSourcePath + ":" + dockerEndpointAgent
+}
+
+// getDockerPluginDirBinds returns the binds for Docker plugin directories.
+func getDockerPluginDirBinds() []string {
+	var pluginBinds []string
+	for _, pluginDir := range pluginDirs {
+		pluginBinds = append(pluginBinds, pluginDir+":"+pluginDir+readOnly)
+	}
+	return pluginBinds
+}
+
 // nvidiaGPUDevicesPresent checks if nvidia GPU devices are present in the instance
 func nvidiaGPUDevicesPresent() bool {
 	matches, err := MatchFilePatternForGPU(gpu.NvidiaGPUDeviceFilePattern)
@@ -383,14 +458,6 @@ func FilePatternMatchForGPU(pattern string) ([]string, error) {
 	return filepath.Glob(pattern)
 }
 
-func getDockerPluginDirBinds() []string {
-	var pluginBinds []string
-	for _, pluginDir := range pluginDirs {
-		pluginBinds = append(pluginBinds, pluginDir+":"+pluginDir+readOnly)
-	}
-	return pluginBinds
-}
-
 // StopAgent stops the Agent in docker if one is running
 func (c *Client) StopAgent() error {
 	id, err := c.findAgentContainer()
@@ -402,5 +469,10 @@ func (c *Client) StopAgent() error {
 		return nil
 	}
 	stopContainerTimeoutSeconds := uint(10)
-	return c.docker.StopContainer(id, stopContainerTimeoutSeconds)
+	err = c.docker.StopContainer(id, stopContainerTimeoutSeconds)
+	if _, ok := err.(*godocker.ContainerNotRunning); ok {
+		log.Info("Agent is already stopped")
+		return nil
+	}
+	return err
 }

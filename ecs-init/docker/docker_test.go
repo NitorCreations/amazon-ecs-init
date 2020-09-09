@@ -15,6 +15,7 @@ package docker
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/aws/amazon-ecs-init/ecs-init/config"
@@ -28,8 +29,8 @@ import (
 // Note: Change this value every time when a new bind mount is added to
 // agent for the tests to pass
 const (
-	expectedAgentBindsUnspecifiedPlatform = 17
-	expectedAgentBindsSuseUbuntuPlatform  = 15
+	expectedAgentBindsUnspecifiedPlatform = 19
+	expectedAgentBindsSuseUbuntuPlatform  = 17
 )
 
 var expectedAgentBinds = expectedAgentBindsUnspecifiedPlatform
@@ -46,12 +47,8 @@ func TestIsAgentImageLoadedListFailure(t *testing.T) {
 		docker: mockDocker,
 	}
 	loaded, err := client.IsAgentImageLoaded()
-	if err == nil {
-		t.Error("Error should be returned")
-	}
-	if loaded {
-		t.Error("IsImageLoaded should return false")
-	}
+	assert.Error(t, err, "error should be returned when list image fails")
+	assert.False(t, loaded, "IsImageLoaded should return false if list image fails")
 }
 
 func TestIsAgentImageLoadedNoMatches(t *testing.T) {
@@ -69,12 +66,8 @@ func TestIsAgentImageLoadedNoMatches(t *testing.T) {
 		docker: mockDocker,
 	}
 	loaded, err := client.IsAgentImageLoaded()
-	if err != nil {
-		t.Error("Error should not be returned")
-	}
-	if loaded {
-		t.Error("IsImageLoaded should return false")
-	}
+	assert.NoError(t, err, "error should not be returned when no images match")
+	assert.False(t, loaded, "IsImageLoaded should return false if there are no matches")
 }
 
 func TestIsImageLoadedMatches(t *testing.T) {
@@ -92,12 +85,8 @@ func TestIsImageLoadedMatches(t *testing.T) {
 		docker: mockDocker,
 	}
 	loaded, err := client.IsAgentImageLoaded()
-	if err != nil {
-		t.Error("Error should not be returned")
-	}
-	if !loaded {
-		t.Error("IsImageLoaded should return true")
-	}
+	assert.NoError(t, err, "error should not be returned when image match is found")
+	assert.True(t, loaded, "IsImageLoaded should return true if there is a match")
 }
 
 func TestLoadImage(t *testing.T) {
@@ -111,7 +100,8 @@ func TestLoadImage(t *testing.T) {
 	client := &Client{
 		docker: mockDocker,
 	}
-	client.LoadImage(nil)
+	err := client.LoadImage(nil)
+	assert.NoError(t, err, "no errors should be returned on load image with nil image")
 }
 
 func TestRemoveExistingAgentContainerListContainersFailure(t *testing.T) {
@@ -243,7 +233,7 @@ func validateCommonCreateContainerOptions(opts godocker.CreateContainerOptions, 
 	expectKey("ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true", envVariables, t)
 	expectKey("ECS_ENABLE_TASK_ENI=true", envVariables, t)
 	expectKey("ECS_ENABLE_AWSLOGS_EXECUTIONROLE_OVERRIDE=true", envVariables, t)
-
+	expectKey(`ECS_VOLUME_PLUGIN_CAPABILITIES=["efsAuth"]`, envVariables, t)
 	if cfg.Image != config.AgentImageName {
 		t.Errorf("Expected image to be %s", config.AgentImageName)
 	}
@@ -276,7 +266,9 @@ func validateCommonCreateContainerOptions(opts godocker.CreateContainerOptions, 
 	expectKey(iptablesLibDir+":"+iptablesLibDir+":ro", binds, t)
 	expectKey(iptablesUsrLib64Dir+":"+iptablesUsrLib64Dir+":ro", binds, t)
 	expectKey(iptablesLib64Dir+":"+iptablesLib64Dir+":ro", binds, t)
-	expectKey(iptablesExecutableDir+":"+iptablesExecutableDir+":ro", binds, t)
+	expectKey(iptablesExecutableHostDir+":"+iptablesExecutableContainerDir+":ro", binds, t)
+	expectKey(iptablesAltDir+":"+iptablesAltDir+":ro", binds, t)
+	expectKey(iptablesLegacyDir+":"+iptablesLegacyDir+":ro", binds, t)
 	for _, pluginDir := range pluginDirs {
 		expectKey(pluginDir+":"+pluginDir+readOnly, binds, t)
 	}
@@ -465,7 +457,8 @@ func TestGetContainerConfigWithFileOverrides(t *testing.T) {
 	client := &Client{
 		fs: mockFS,
 	}
-	cfg := client.getContainerConfig()
+	envVarsFromFiles := client.LoadEnvVars()
+	cfg := client.getContainerConfig(envVarsFromFiles)
 
 	envVariables := make(map[string]struct{})
 	for _, envVar := range cfg.Env {
@@ -500,7 +493,8 @@ func TestGetInstanceConfig(t *testing.T) {
 	client := &Client{
 		fs: mockFS,
 	}
-	cfg := client.getContainerConfig()
+	envVarsFromFiles := client.LoadEnvVars()
+	cfg := client.getContainerConfig(envVarsFromFiles)
 
 	envVariables := make(map[string]struct{})
 	for _, envVar := range cfg.Env {
@@ -530,7 +524,8 @@ func TestGetNonGPUInstanceConfig(t *testing.T) {
 	client := &Client{
 		fs: mockFS,
 	}
-	cfg := client.getContainerConfig()
+	envVarsFromFiles := client.LoadEnvVars()
+	cfg := client.getContainerConfig(envVarsFromFiles)
 
 	envVariables := make(map[string]struct{})
 	for _, envVar := range cfg.Env {
@@ -556,7 +551,8 @@ func TestGetConfigOverrides(t *testing.T) {
 	client := &Client{
 		fs: mockFS,
 	}
-	cfg := client.getContainerConfig()
+	envVarsFromFiles := client.LoadEnvVars()
+	cfg := client.getContainerConfig(envVarsFromFiles)
 
 	envVariables := make(map[string]struct{})
 	for _, envVar := range cfg.Env {
@@ -565,78 +561,194 @@ func TestGetConfigOverrides(t *testing.T) {
 	expectKey("ECS_ENABLE_GPU_SUPPORT=false", envVariables, t)
 }
 
-func TestStopAgentError(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	mockDocker := NewMockdockerclient(mockCtrl)
-
-	mockDocker.EXPECT().ListContainers(godocker.ListContainersOptions{
-		All: true,
-		Filters: map[string][]string{
-			"status": []string{},
-		},
-	}).Return(nil, errors.New("test error"))
-
-	client := &Client{
-		docker: mockDocker,
-	}
-
-	err := client.StopAgent()
-	if err == nil {
-		t.Error("Error should be returned")
-	}
-}
-
-func TestStopAgentNone(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	mockDocker := NewMockdockerclient(mockCtrl)
-
-	mockDocker.EXPECT().ListContainers(godocker.ListContainersOptions{
-		All: true,
-		Filters: map[string][]string{
-			"status": []string{},
-		},
-	}).Return([]godocker.APIContainers{godocker.APIContainers{}}, nil)
-
-	client := &Client{
-		docker: mockDocker,
-	}
-
-	err := client.StopAgent()
-	if err != nil {
-		t.Error("Error should not be returned")
-	}
-}
-
 func TestStopAgent(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	mockDocker := NewMockdockerclient(mockCtrl)
-
-	mockDocker.EXPECT().ListContainers(godocker.ListContainersOptions{
-		All: true,
-		Filters: map[string][]string{
-			"status": []string{},
+	testCases := []struct {
+		name                 string
+		listFailed           bool
+		listEmpty            bool
+		stopFailedNotRunning bool
+		stopFailedOther      bool
+		expectedError        bool
+	}{
+		{
+			name: "List containers succeeded, stop agent succeeded",
 		},
-	}).Return([]godocker.APIContainers{
-		godocker.APIContainers{
-			Names: []string{"/" + config.AgentContainerName},
-			ID:    "id",
+		{
+			name:       "List containers failed",
+			listFailed: true,
 		},
-	}, nil)
-	mockDocker.EXPECT().StopContainer("id", uint(10))
-
-	client := &Client{
-		docker: mockDocker,
+		{
+			name:      "List containers no agent present",
+			listEmpty: true,
+		},
+		{
+			name:                 "List containers succeeded, stop agent failed on container not running",
+			stopFailedNotRunning: true,
+		},
+		{
+			name:            "List containers succeeded, stop agent failed on error other than not running",
+			stopFailedOther: true,
+		},
 	}
 
-	err := client.StopAgent()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+
+			mockDocker := NewMockdockerclient(mockCtrl)
+			client := &Client{
+				docker: mockDocker,
+			}
+
+			var listInput godocker.ListContainersOptions
+			var listOutput []godocker.APIContainers
+			var listErr error
+			listInput = godocker.ListContainersOptions{
+				All: true,
+				Filters: map[string][]string{
+					"status": {},
+				},
+			}
+			if tc.listEmpty || tc.listFailed {
+				listOutput = []godocker.APIContainers{{}}
+			} else {
+				listOutput = []godocker.APIContainers{
+					{
+						Names: []string{"/" + config.AgentContainerName},
+						ID:    "id",
+					},
+				}
+			}
+
+			if tc.listFailed {
+				listErr = errors.New("test error")
+			}
+
+			mockDocker.EXPECT().ListContainers(listInput).Return(listOutput, listErr)
+
+			var stopErr error
+			if tc.stopFailedNotRunning {
+				stopErr = &godocker.ContainerNotRunning{ID: "id"}
+			} else if tc.stopFailedOther {
+				stopErr = errors.New("test error")
+			}
+
+			if !tc.listEmpty && !tc.listFailed {
+				mockDocker.EXPECT().StopContainer("id", uint(10)).Return(stopErr)
+			}
+
+			if tc.listFailed || tc.stopFailedOther {
+				assert.Error(t, client.StopAgent())
+			} else {
+				assert.NoError(t, client.StopAgent())
+			}
+		})
+	}
+}
+
+func TestContainerLabels(t *testing.T) {
+	testData := `{"test.label.1":"value1","test.label.2":"value2"}`
+	out, err := generateLabelMap(testData)
 	if err != nil {
-		t.Error("Error should not be returned")
+		t.Logf("Got an error while decoding labels, error: %s", err)
+		t.Fail()
+	}
+	if out["test.label.1"] != "value1" {
+		t.Logf("Label did not give the correct value out.")
+		t.Fail()
+	}
+
+	for key, value := range out {
+		t.Logf("Key: %s %T | Value: %s %T", key, key, value, value)
+	}
+}
+
+func TestContainerLabelsNoData(t *testing.T) {
+	tests := []struct {
+		name     string
+		testData string
+	}{
+		{
+			name:     "Blank",
+			testData: "",
+		},
+		{
+			name:     "Empty JSON",
+			testData: `{}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := &godocker.Config{}
+
+			setLabels(cfg, test.testData)
+
+			if cfg.Labels != nil {
+				t.Logf("Labels are set but we didn't give any. Current labels: %s", cfg.Labels)
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestContainerLabelsBadData(t *testing.T) {
+	testData := `{"something":[{"test.label.1":"value1"},{"test.label.2":"value2"}]}`
+	_, err := generateLabelMap(testData)
+	if err == nil {
+		t.Logf("Didn't get a error while getting lables on badly formatted data, error: %s", err)
+		t.Fail()
+	}
+}
+
+func TestGetDockerSocketBind(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		dockerHostFromEnv        string
+		dockerHostFromConfigFile string
+		expectedBind             string
+	}{
+		{
+			name:                     "No Docker host from env",
+			dockerHostFromEnv:        "",
+			dockerHostFromConfigFile: "dummy",
+			expectedBind:             "/var/run:/var/run",
+		},
+		{
+			name:                     "Invalid Docker host from env",
+			dockerHostFromEnv:        "invalid",
+			dockerHostFromConfigFile: "dummy",
+			expectedBind:             "/var/run:/var/run",
+		},
+		{
+			name:                     "Docker host from env, no Docker host from config file",
+			dockerHostFromEnv:        "unix:///var/run/docker.sock",
+			dockerHostFromConfigFile: "",
+			expectedBind:             "/var/run/docker.sock:/var/run/docker.sock",
+		},
+		{
+			name:                     "Docker host from env, invalid Docker host from config file",
+			dockerHostFromEnv:        "unix:///var/run/docker.sock",
+			dockerHostFromConfigFile: "invalid",
+			expectedBind:             "/var/run/docker.sock:/var/run/docker.sock",
+		},
+		{
+			name:                     "Docker host from env, Docker host from config file",
+			dockerHostFromEnv:        "unix:///var/run/docker.sock.1",
+			dockerHostFromConfigFile: "unix:///var/run/docker.sock.1",
+			expectedBind:             "/var/run/docker.sock.1:/var/run/docker.sock.1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Setenv("DOCKER_HOST", tc.dockerHostFromEnv)
+			defer os.Unsetenv("DOCKER_HOST")
+
+			bind := getDockerSocketBind(map[string]string{"DOCKER_HOST": tc.dockerHostFromConfigFile})
+			assert.Equal(t, tc.expectedBind, bind)
+		})
 	}
 }
 

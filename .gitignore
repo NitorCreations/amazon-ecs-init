@@ -16,3 +16,6 @@
 ecs-agent-*.tar
 ecs.service
 *.log
+.idea/
+cover.out
+coverprofile.out

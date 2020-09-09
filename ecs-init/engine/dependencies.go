@@ -31,6 +31,7 @@ type downloader interface {
 }
 
 type dockerClient interface {
+	GetContainerLogTail(logWindowSize string) string
 	IsAgentImageLoaded() (bool, error)
 	LoadImage(image io.Reader) error
 	RemoveExistingAgentContainer() error
@@ -47,4 +48,8 @@ type loopbackRouting interface {
 type credentialsProxyRoute interface {
 	Create() error
 	Remove() error
+}
+
+type ipv6RouterAdvertisements interface {
+	Disable() error
 }

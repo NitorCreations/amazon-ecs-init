@@ -22,6 +22,7 @@
 %endif
 %global _cachedir %{_localstatedir}/cache
 %global bundled_agent_version %{version}
+%global no_exec_perm 644
 
 %ifarch x86_64
 %global agent_image %{SOURCE3}
@@ -31,7 +32,7 @@
 %endif
 
 Name:           ecs-init
-Version:        1.32.1
+Version:        1.44.3
 Release:        1%{?dist}
 License:        Apache 2.0
 Summary:        Amazon Elastic Container Service initialization application
@@ -44,6 +45,9 @@ Source2:        ecs.service
 Source3:        https://s3.amazonaws.com/amazon-ecs-agent/ecs-agent-v%{bundled_agent_version}.tar
 # aarch64 Container agent docker image
 Source4:        https://s3.amazonaws.com/amazon-ecs-agent/ecs-agent-arm64-v%{bundled_agent_version}.tar
+Source5:        amazon-ecs-volume-plugin.conf
+Source6:        amazon-ecs-volume-plugin.service
+Source7:        amazon-ecs-volume-plugin.socket
 
 BuildRequires:  golang >= 1.7
 %if %{with systemd}
@@ -64,87 +68,96 @@ Requires:       procps
 # statements by reading out the vendor directory:
 #
 # find ../../ecs-init/vendor -name \*.go -exec dirname {} \; | sort | uniq | sed 's,^.*ecs-init/vendor/,,; s/^/bundled(golang(/; s/$/))/;' | sed 's/^/Provides:\t/' | expand -
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/awserr))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/awsutil))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/client))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/client/metadata))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/corehandlers))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/credentials))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/credentials/endpointcreds))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/credentials/stscreds))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/defaults))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/ec2metadata))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/endpoints))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/request))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/session))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/aws/signer/v4))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/internal/sdkio))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/internal/sdkrand))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/internal/shareddefaults))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/private/protocol))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/private/protocol/query))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/private/protocol/query/queryutil))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/private/protocol/rest))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/private/protocol/restxml))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/service/s3))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/service/s3/s3iface))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/service/s3/s3manager))
-Provides:       bundled(golang(github.com/aws/aws-sdk-go/service/sts))
-Provides:       bundled(golang(github.com/Azure/go-ansiterm))
-Provides:       bundled(golang(github.com/Azure/go-ansiterm/winterm))
-Provides:       bundled(golang(github.com/cihub/seelog))
-Provides:       bundled(golang(github.com/cihub/seelog/archive))
-Provides:       bundled(golang(github.com/cihub/seelog/archive/gzip))
-Provides:       bundled(golang(github.com/cihub/seelog/archive/tar))
-Provides:       bundled(golang(github.com/cihub/seelog/archive/zip))
-Provides:       bundled(golang(github.com/docker/docker/api/types))
-Provides:       bundled(golang(github.com/docker/docker/api/types/blkiodev))
-Provides:       bundled(golang(github.com/docker/docker/api/types/container))
-Provides:       bundled(golang(github.com/docker/docker/api/types/filters))
-Provides:       bundled(golang(github.com/docker/docker/api/types/mount))
-Provides:       bundled(golang(github.com/docker/docker/api/types/network))
-Provides:       bundled(golang(github.com/docker/docker/api/types/registry))
-Provides:       bundled(golang(github.com/docker/docker/api/types/strslice))
-Provides:       bundled(golang(github.com/docker/docker/api/types/swarm))
-Provides:       bundled(golang(github.com/docker/docker/api/types/versions))
-Provides:       bundled(golang(github.com/docker/docker/opts))
-Provides:       bundled(golang(github.com/docker/docker/pkg/archive))
-Provides:       bundled(golang(github.com/docker/docker/pkg/fileutils))
-Provides:       bundled(golang(github.com/docker/docker/pkg/homedir))
-Provides:       bundled(golang(github.com/docker/docker/pkg/idtools))
-Provides:       bundled(golang(github.com/docker/docker/pkg/ioutils))
-Provides:       bundled(golang(github.com/docker/docker/pkg/jsonlog))
-Provides:       bundled(golang(github.com/docker/docker/pkg/jsonmessage))
-Provides:       bundled(golang(github.com/docker/docker/pkg/longpath))
-Provides:       bundled(golang(github.com/docker/docker/pkg/mount))
-Provides:       bundled(golang(github.com/docker/docker/pkg/pools))
-Provides:       bundled(golang(github.com/docker/docker/pkg/promise))
-Provides:       bundled(golang(github.com/docker/docker/pkg/stdcopy))
-Provides:       bundled(golang(github.com/docker/docker/pkg/system))
-Provides:       bundled(golang(github.com/docker/docker/pkg/term))
-Provides:       bundled(golang(github.com/docker/docker/pkg/term/windows))
-Provides:       bundled(golang(github.com/docker/go-connections/nat))
-Provides:       bundled(golang(github.com/docker/go-units))
-Provides:       bundled(golang(github.com/fsouza/go-dockerclient))
-Provides:       bundled(golang(github.com/go-ini/ini))
-Provides:       bundled(golang(github.com/golang/mock/gomock))
-Provides:       bundled(golang(github.com/jmespath/go-jmespath))
-Provides:       bundled(golang(github.com/Microsoft/go-winio))
-Provides:       bundled(golang(github.com/Nvveen/Gotty))
-Provides:       bundled(golang(github.com/opencontainers/go-digest))
-Provides:       bundled(golang(github.com/opencontainers/image-spec/specs-go))
-Provides:       bundled(golang(github.com/opencontainers/image-spec/specs-go/v1))
-Provides:       bundled(golang(github.com/opencontainers/runc/libcontainer/system))
-Provides:       bundled(golang(github.com/opencontainers/runc/libcontainer/user))
-Provides:       bundled(golang(github.com/pkg/errors))
-Provides:       bundled(golang(github.com/Sirupsen/logrus))
-Provides:       bundled(golang(golang.org/x/net/context))
-Provides:       bundled(golang(golang.org/x/net/context/ctxhttp))
-Provides:       bundled(golang(golang.org/x/sys/unix))
-Provides:       bundled(golang(golang.org/x/sys/windows))
+Provides:	    bundled(golang(github.com/Azure/go-ansiterm))
+Provides:	    bundled(golang(github.com/Azure/go-ansiterm/winterm))
+Provides:	    bundled(golang(github.com/Microsoft/go-winio))
+Provides:	    bundled(golang(github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml))
+Provides:	    bundled(golang(github.com/Nvveen/Gotty))
+Provides:	    bundled(golang(github.com/Sirupsen/logrus))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/awserr))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/awsutil))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/client))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/client/metadata))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/corehandlers))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/credentials))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/credentials/endpointcreds))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/credentials/stscreds))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/defaults))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/ec2metadata))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/endpoints))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/request))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/session))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/aws/signer/v4))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/internal/sdkio))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/internal/sdkrand))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/internal/shareddefaults))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/private/protocol))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/private/protocol/query))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/private/protocol/query/queryutil))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/private/protocol/rest))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/private/protocol/restxml))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/service/s3))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/service/s3/s3iface))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/service/s3/s3manager))
+Provides:	    bundled(golang(github.com/aws/aws-sdk-go/service/sts))
+Provides:	    bundled(golang(github.com/cihub/seelog))
+Provides:	    bundled(golang(github.com/cihub/seelog/archive))
+Provides:	    bundled(golang(github.com/cihub/seelog/archive/gzip))
+Provides:	    bundled(golang(github.com/cihub/seelog/archive/tar))
+Provides:	    bundled(golang(github.com/cihub/seelog/archive/zip))
+Provides:	    bundled(golang(github.com/coreos/go-systemd/activation))
+Provides:	    bundled(golang(github.com/davecgh/go-spew/spew))
+Provides:	    bundled(golang(github.com/docker/docker/api/types))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/blkiodev))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/container))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/filters))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/mount))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/network))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/registry))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/strslice))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/swarm))
+Provides:	    bundled(golang(github.com/docker/docker/api/types/versions))
+Provides:	    bundled(golang(github.com/docker/docker/opts))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/archive))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/fileutils))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/homedir))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/idtools))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/ioutils))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/jsonlog))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/jsonmessage))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/longpath))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/mount))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/pools))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/promise))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/stdcopy))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/system))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/term))
+Provides:	    bundled(golang(github.com/docker/docker/pkg/term/windows))
+Provides:	    bundled(golang(github.com/docker/go-connections/nat))
+Provides:	    bundled(golang(github.com/docker/go-connections/sockets))
+Provides:	    bundled(golang(github.com/docker/go-plugins-helpers/sdk))
+Provides:	    bundled(golang(github.com/docker/go-plugins-helpers/volume))
+Provides:	    bundled(golang(github.com/docker/go-units))
+Provides:	    bundled(golang(github.com/fsouza/go-dockerclient))
+Provides:	    bundled(golang(github.com/go-ini/ini))
+Provides:	    bundled(golang(github.com/golang/mock/gomock))
+Provides:	    bundled(golang(github.com/jmespath/go-jmespath))
+Provides:	    bundled(golang(github.com/opencontainers/go-digest))
+Provides:	    bundled(golang(github.com/opencontainers/image-spec/specs-go))
+Provides:	    bundled(golang(github.com/opencontainers/image-spec/specs-go/v1))
+Provides:	    bundled(golang(github.com/opencontainers/runc/libcontainer/system))
+Provides:	    bundled(golang(github.com/opencontainers/runc/libcontainer/user))
+Provides:	    bundled(golang(github.com/pkg/errors))
+Provides:	    bundled(golang(github.com/pmezard/go-difflib/difflib))
+Provides:	    bundled(golang(github.com/stretchr/testify/assert))
+Provides:	    bundled(golang(golang.org/x/net/context))
+Provides:	    bundled(golang(golang.org/x/net/context/ctxhttp))
+Provides:	    bundled(golang(golang.org/x/net/proxy))
+Provides:	    bundled(golang(golang.org/x/sys/unix))
+Provides:	    bundled(golang(golang.org/x/sys/windows))
 
 %description
 ecs-init supports the initialization and supervision of the Amazon ECS
@@ -159,7 +172,8 @@ required routes among its preparation steps.
 
 %install
 install -D amazon-ecs-init %{buildroot}%{_libexecdir}/amazon-ecs-init
-install -D scripts/amazon-ecs-init.1 %{buildroot}%{_mandir}/man1/amazon-ecs-init.1
+install -D amazon-ecs-volume-plugin %{buildroot}%{_libexecdir}/amazon-ecs-volume-plugin
+install -m %{no_exec_perm} -D scripts/amazon-ecs-init.1 %{buildroot}%{_mandir}/man1/amazon-ecs-init.1
 
 mkdir -p %{buildroot}%{_sysconfdir}/ecs
 touch %{buildroot}%{_sysconfdir}/ecs/ecs.config
@@ -169,19 +183,23 @@ touch %{buildroot}%{_sysconfdir}/ecs/ecs.config.json
 mkdir -p %{buildroot}%{_cachedir}/ecs
 echo 2 > %{buildroot}%{_cachedir}/ecs/state
 # Add a bundled ECS container agent image
-install %{agent_image} %{buildroot}%{_cachedir}/ecs/
+install -m %{no_exec_perm} %{agent_image} %{buildroot}%{_cachedir}/ecs/
 
 mkdir -p %{buildroot}%{_sharedstatedir}/ecs/data
 
 %if %{with systemd}
-install -D %{SOURCE2} $RPM_BUILD_ROOT/%{_unitdir}/ecs.service
+install -m %{no_exec_perm} -D %{SOURCE2} $RPM_BUILD_ROOT/%{_unitdir}/ecs.service
+install -m %{no_exec_perm} -D %{SOURCE6} $RPM_BUILD_ROOT/%{_unitdir}/amazon-ecs-volume-plugin.service
+install -m %{no_exec_perm} -D %{SOURCE7} $RPM_BUILD_ROOT/%{_unitdir}/amazon-ecs-volume-plugin.socket
 %else
-install -D %{SOURCE1} %{buildroot}%{_sysconfdir}/init/ecs.conf
+install -m %{no_exec_perm} -D %{SOURCE1} %{buildroot}%{_sysconfdir}/init/ecs.conf
+install -m %{no_exec_perm} -D %{SOURCE5} %{buildroot}%{_sysconfdir}/init/amazon-ecs-volume-plugin.conf
 %endif
 
 %files
 %{_libexecdir}/amazon-ecs-init
 %{_mandir}/man1/amazon-ecs-init.1*
+%{_libexecdir}/amazon-ecs-volume-plugin
 %config(noreplace) %ghost %{_sysconfdir}/ecs/ecs.config
 %config(noreplace) %ghost %{_sysconfdir}/ecs/ecs.config.json
 %ghost %{_cachedir}/ecs/ecs-agent.tar
@@ -191,8 +209,11 @@ install -D %{SOURCE1} %{buildroot}%{_sysconfdir}/init/ecs.conf
 
 %if %{with systemd}
 %{_unitdir}/ecs.service
+%{_unitdir}/amazon-ecs-volume-plugin.service
+%{_unitdir}/amazon-ecs-volume-plugin.socket
 %else
 %{_sysconfdir}/init/ecs.conf
+%{_sysconfdir}/init/amazon-ecs-volume-plugin.conf
 %endif
 
 %post
@@ -200,9 +221,12 @@ install -D %{SOURCE1} %{buildroot}%{_sysconfdir}/init/ecs.conf
 ln -sf %{basename:%{agent_image}} %{_cachedir}/ecs/ecs-agent.tar
 %if %{with systemd}
 %systemd_post ecs
+%systemd_post amazon-ecs-volume-plugin.service
 
 %postun
 %systemd_postun
+%systemd_postun_with_restart amazon-ecs-volume-plugin
+
 %else
 %triggerun -- docker
 # record whether or not our service was running when docker is upgraded
@@ -254,6 +278,73 @@ fi
 %endif
 
 %changelog
+<<<<<<< HEAD
+=======
+* Wed Sep 02 2020 Meghna Srivastav  <mssrivas@amazon.com> - 1.44.3-1
+- Cache Agent version 1.44.3
+
+* Wed Aug 26 2020 Utsa Bhattacharjya <utsa@amazon.com> - 1.44.2-1
+- Cache Agent version 1.44.2
+
+* Thu Aug 20 2020 Shubham Goyal <shugy@amazon.com> - 1.44.1-1
+- Cache Agent version 1.44.1
+
+* Thu Aug 13 2020 Shubham Goyal <shugy@amazon.com> - 1.44.0-1
+- Cache Agent version 1.44.0
+- Add support for configuring Agent container logs
+
+* Tue Aug 04 2020 Feng Xiong <fenxiong@amazon.com> - 1.43.0-2
+- Cache Agent version 1.43.0
+
+* Thu Jul 23 2020 Yunhee Lee <yhlee@amazon.com> - 1.42.0-1
+- Cache Agent version 1.42.0
+- Add a flag ECS_SKIP_LOCALHOST_TRAFFIC_FILTER to allow skipping local traffic filtering
+
+* Thu Jul 09 2020 Feng Xiong <fenxiong@amazon.com> - 1.41.1-2
+- Drop traffic to 127.0.0.1 that isn't originated from the host
+
+* Mon Jul 06 2020 Yajie Chu <cya@amazon.com> - 1.41.1-1
+- Cache Agent version 1.41.1
+
+* Mon Jun 22 2020 Meghna Srivastav <mssrivas@amazon.com> - 1.41.0-1
+- Cache Agent version 1.41.0
+
+* Tue Jun 02 2020 Meghna Srivastav <mssrivas@amazon.com> - 1.40.0-1
+- Cache Agent version 1.40.0
+
+* Fri Apr 03 2020 Yunhee Lee <yhlee@amazon.com> - 1.39.0-2
+- Cache Agent version 1.39.0
+- Ignore IPv6 disable failure if already disabled
+
+* Thu Mar 19 2020 Sharanya Devaraj <sharanyd@amazon.com> - 1.38.0-1
+- Cache Agent version 1.38.0
+- Adds support for ECS volume plugin
+- Disable ipv6 router advertisements for optimization
+
+* Sat Feb 22 2020 Jessie Young <youngli@amazon.com> - 1.37.0-2
+- Cache Agent version 1.37.0
+- Add '/etc/alternatives' to mounts
+
+* Tue Feb 04 2020 Ray Allan <fierlion@amazon.com> - 1.36.2-1
+- Cache Agent version 1.36.2
+- update sbin mount point to avoid conflict with Docker >= 19.03.5
+
+* Fri Jan 10 2020 Yunhee Lee <yhlee@amazon.com> - 1.36.1-1
+- Cache Agent version 1.36.1
+
+* Wed Jan 08 2020 Cameron Sparr <cssparr@amazon.com> - 1.36.0-1
+- Cache Agent version 1.36.0
+- capture a fixed tail of container logs when removing a container
+
+* Thu Dec 12 2019 Derek Petersen <petderek@amazon.com> - 1.35.0-1
+- Cache Agent version 1.35.0
+- Fix bug where stopping agent gracefully would still restart ecs-init
+
+* Mon Nov 11 2019 Shubham Goyal <shugy@amazon.com> - 1.33.0-1
+- Cache Agent version 1.33.0
+- Fix destination path in docker socket bind mount to match the one specified using DOCKER_HOST on Amazon Linux 2
+
+>>>>>>> upstream/master
 * Mon Oct 28 2019 Shubham Goyal <shugy@amazon.com> - 1.32.1-1
 - Cache Agent version 1.32.1
 - Add the ability to set Agent container's labels
@@ -261,32 +352,32 @@ fi
 * Wed Sep 25 2019 Cameron Sparr <cssparr@amazon.com> - 1.32.0-1
 - Cache Agent version 1.32.0
 
-* Thu Sep 13 2019 Yajie Chu <cya@amazon.com> - 1.31.0-1
+* Fri Sep 13 2019 Yajie Chu <cya@amazon.com> - 1.31.0-1
 - Cache Agent version 1.31.0
 
 * Thu Aug 15 2019 Feng Xiong <fenxiong@amazon.com> - 1.30.0-1
 - Cache Agent version 1.30.0
 
-* Mon Jul 8 2019 Shubham Goyal <shugy@amazon.com> - 1.29.1-1
+* Mon Jul 08 2019 Shubham Goyal <shugy@amazon.com> - 1.29.1-1
 - Cache Agent version 1.29.1
 
-* Thu Jun 6 2019 Yumeng Xie <yumex@amazon.com> - 1.29.0-1
+* Thu Jun 06 2019 Yumeng Xie <yumex@amazon.com> - 1.29.0-1
 - Cache Agent version 1.29.0
 
 * Fri May 31 2019 Feng Xiong <fenxiong@amazon.com> - 1.28.1-2
 - Cache Agent version 1.28.1
 - Use exponential backoff when restarting agent
 
-* Thu May 9 2019 Feng Xiong <fenxiong@amazon.com> - 1.28.0-1
+* Thu May 09 2019 Feng Xiong <fenxiong@amazon.com> - 1.28.0-1
 - Cache Agent version 1.28.0
 
 * Thu Mar 28 2019 Shaobo Han <obo@amazon.com> - 1.27.0-1
 - Cache Agent version 1.27.0
 
-* Thu Mar 21 2019 Derek Petersen <petderek@amazon.com> - 1.26.1
+* Thu Mar 21 2019 Derek Petersen <petderek@amazon.com> - 1.26.1-1
 - Cache Agent version 1.26.1
 
-* Thu Feb 28 2019 Derek Petersen <petderek@amazon.com> - 1.26.0
+* Thu Feb 28 2019 Derek Petersen <petderek@amazon.com> - 1.26.0-1
 - Cache Agent version 1.26.0
 - Add support for running iptables within agent container
 
@@ -296,7 +387,7 @@ fi
 * Thu Jan 31 2019 Shaobo Han <obo@amazon.com> - 1.25.2-1
 - Cache Agent version 1.25.2
 
-* Fri Jan 25 2019 Adnan Khan <adnkha@amazon.com> - 1.25.1-1
+* Sat Jan 26 2019 Adnan Khan <adnkha@amazon.com> - 1.25.1-1
 - Cache Agent version 1.25.1
 - Update ecr models for private link support
 
@@ -304,7 +395,7 @@ fi
 - Cache Agent version 1.25.0
 - Add Nvidia GPU support for p2 and p3 instances
 
-* Fri Jan 4 2019 Eric Sun <yuzhusun@amazon.com> - 1.24.0-1
+* Fri Jan 04 2019 Eric Sun <yuzhusun@amazon.com> - 1.24.0-1
 - Cache Agent version 1.24.0
 
 * Fri Nov 16 2018 Jacob Vallejo <jakeev@amazon.com> - 1.22.0-4
@@ -314,7 +405,11 @@ fi
 * Thu Nov 15 2018 Jacob Vallejo <jakeev@amazon.com> - 1.22.0-3
 - Rebuild
 
+<<<<<<< HEAD
 * Fri Nov 2 2018 Yunhee Lee <yhlee@amazon.com> - 1.22.0-2
+=======
+* Fri Nov 02 2018 Yunhee Lee <yhlee@amazon.com> - 1.22.0-2
+>>>>>>> upstream/master
 - Cache Agent version 1.22.0
 
 * Thu Oct 11 2018 Sharanya Devaraj <sharanyd@amazon.com> - 1.21.0-1
@@ -322,13 +417,17 @@ fi
 - Support configurable logconfig for Agent container to reduce disk usage
 - ECS Agent will use the host's cert store on the Amazon Linux platform
 
-* Thu Sep 13 2018 Yumeng Xie <yumex@amazon.com> - 1.20.3-1
+* Fri Sep 14 2018 Yumeng Xie <yumex@amazon.com> - 1.20.3-1
 - Cache Agent version 1.20.3
 
-* Thu Aug 30 2018 Feng Xiong <fenxiong@amazon.com> - 1.20.2-1
+* Fri Aug 31 2018 Feng Xiong <fenxiong@amazon.com> - 1.20.2-1
 - Cache Agent version 1.20.2
 
+<<<<<<< HEAD
 * Wed Aug 08 2018 Peng Yin <penyin@amazon.com> - 1.20.1-1
+=======
+* Thu Aug 09 2018 Peng Yin <penyin@amazon.com> - 1.20.1-1
+>>>>>>> upstream/master
 - Cache Agent version 1.20.1
 
 * Wed Aug 01 2018 Haikuo Liu <haikuo@amazon.com> - 1.20.0-1
@@ -345,24 +444,24 @@ fi
 - Enable builds for both AL1 and AL2
 
 * Fri May 04 2018 Haikuo Liu <haikuo@amazon.com> - 1.18.0-1
-- Cache Agent vesion 1.18.0
+- Cache Agent version 1.18.0
 - Add support for regional buckets
 - Bundle ECS Agent tarball in package
 - Download agent based on the partition
 - Mount Docker plugin files dir
 
 * Fri Mar 30 2018 Justin Haynes <jushay@amazon.com> - 1.17.3-1
-- Cache Agent vesion 1.17.3
+- Cache Agent version 1.17.3
 - Use s3client instead of httpclient when downloading
 
 * Mon Mar 05 2018 Jacob Vallejo <jakeev@amazon.com> - 1.17.2-1
-- Cache Agent vesion 1.17.2
+- Cache Agent version 1.17.2
 
 * Mon Feb 19 2018 Justin Haynes <jushay@amazon.com> - 1.17.1-1
-- Cache Agent vesion 1.17.1
+- Cache Agent version 1.17.1
 
 * Mon Feb 05 2018 Justin Haynes <jushay@amazon.com> - 1.17.0-2
-- Cache Agent vesion 1.17.0
+- Cache Agent version 1.17.0
 
 * Tue Jan 16 2018 Derek Petersen <petderek@amazon.com> - 1.16.2-1
 - Cache Agent version 1.16.2
@@ -370,40 +469,32 @@ fi
 
 * Wed Jan 03 2018 Noah Meyerhans <nmeyerha@amazon.com> - 1.16.1-1
 - Cache Agent version 1.16.1
-- Improve startup behavior when docker socket does not yet exist
+- Improve startup behavior when Docker socket doesn't exist yet
 
 * Tue Nov 21 2017 Noah Meyerhans <nmeyerha@amazon.com> - 1.16.0-1
-- Cache Agent vesion 1.16.0
+- Cache Agent version 1.16.0
 
-* Thu Nov 16 2017 Noah Meyerhans <nmeyerha@amazon.com> - 1.15.2-2
-- Correct the agent 1.15.2 filename
-
-* Tue Nov 14 2017 Noah Meyerhans <nmeyerha@amazon.com> - 1.15.2-1
+* Wed Nov 15 2017 Noah Meyerhans <nmeyerha@amazon.com> - 1.15.2-1
 - Cache Agent version 1.15.2
 
-* Mon Nov  6 2017 Jacob Vallejo <jakeev@amazon.com> - 1.15.1-1
-- Cache Agent version 1.15.1
+* Tue Oct 17 2017 Jacob Vallejo <jakeev@amazon.com> - 1.15.1-1
+- Update ECS Agent version
 
-* Mon Oct 30 2017 Justin Haynes <jushay@amazon.com> - 1.15.0-4
-- Cache Agent version 1.15.0
-- Add 'none' logging driver to ECS agent's config
+* Sat Oct 07 2017 Justin Haynes <jushay@amazon.com> - 1.15.0-1
+- Update ECS Agent version
 
-* Fri Sep 29 2017 Justin Haynes <jushay@amazon.com> - 1.14.5-1
-- Cache Agent version 1.14.5
+* Sat Sep 30 2017 Justin Haynes <jushay@amazon.com> - 1.14.5-1
+- Update ECS Agent version
 
 * Tue Aug 22 2017 Justin Haynes <jushay@amazon.com> - 1.14.4-1
-- Cache Agent version 1.14.4
-- Add support for Docker 17.03.2ce
+- Update ECS Agent version
 
-* Fri Jun 9 2017 Adnan Khan <adnkha@amazon.com> - 1.14.3-1
-- Cache Agent version 1.14.3
-
-* Thu Jun 1 2017 Adnan Khan <adnkha@amazon.com> - 1.14.2-2
+* Thu Jun 01 2017 Adnan Khan <adnkha@amazon.com> - 1.14.2-2
 - Cache Agent version 1.14.2
 - Add functionality for running agent with userns=host when Docker has userns-remap enabled
 - Add support for Docker 17.03.1ce
 
-* Mon Mar 6 2017 Adnan Khan <adnkha@amazon.com> - 1.14.1-1
+* Mon Mar 06 2017 Adnan Khan <adnkha@amazon.com> - 1.14.1-1
 - Cache Agent version 1.14.1
 
 * Wed Jan 25 2017 Anirudh Aithal <aithal@amazon.com> - 1.14.0-2
@@ -412,7 +503,7 @@ fi
 * Mon Jan 16 2017 Derek Petersen <petderek@amazon.com> - 1.14.0-1
 - Cache Agent version 1.14.0
 
-* Fri Jan  6 2017 Noah Meyerhans <nmeyerha@amazon.com> - 1.13.1-2
+* Fri Jan 06 2017 Noah Meyerhans <nmeyerha@amazon.com> - 1.13.1-2
 - Update Requires to indicate support for docker <= 1.12.6
 
 * Mon Nov 14 2016 Peng Yin <penyin@amazon.com> - 1.13.1-1
@@ -431,10 +522,10 @@ fi
 - Cache Agent version 1.12.0
 - Add netfilter rules to support host network reaching credentials proxy
 
-* Wed Aug 3 2016 Samuel Karp <skarp@amazon.com> - 1.11.1-1
+* Wed Aug 03 2016 Samuel Karp <skarp@amazon.com> - 1.11.1-1
 - Cache Agent version 1.11.1
 
-* Tue Jul 5 2016 Samuel Karp <skarp@amazon.com> - 1.11.0-1
+* Tue Jul 05 2016 Samuel Karp <skarp@amazon.com> - 1.11.0-1
 - Cache Agent version 1.11.0
 - Add support for Docker 1.11.2
 - Modify iptables and netfilter to support credentials proxy
@@ -458,10 +549,10 @@ fi
 * Wed Feb 10 2016 Juan Rhenals <rhenalsj@amazon.com> - 1.8.0-1
 - Cache Agent version 1.8.0
 
-* Fri Jan 8 2016 Samuel Karp <skarp@amazon.com> - 1.7.1-1
+* Fri Jan 08 2016 Samuel Karp <skarp@amazon.com> - 1.7.1-1
 - Cache Agent version 1.7.1
 
-* Tue Dec 8 2015 Samuel Karp <skarp@amazon.com> - 1.7.0-1
+* Tue Dec 08 2015 Samuel Karp <skarp@amazon.com> - 1.7.0-1
 - Cache Agent version 1.7.0
 - Add support for Docker 1.9.1
 
@@ -484,27 +575,27 @@ fi
 - Cache Agent version 1.3.1
 - Read Docker endpoint from environment variable DOCKER_HOST if present
 
-* Thu Jul 2 2015 Samuel Karp <skarp@amazon.com> - 1.3.0-1
+* Thu Jul 02 2015 Samuel Karp <skarp@amazon.com> - 1.3.0-1
 - Cache Agent version 1.3.0
 
 * Fri Jun 19 2015 Euan Kemp <euank@amazon.com> - 1.2.1-2
 - Cache Agent version 1.2.1
 
-* Tue Jun 2 2015 Samuel Karp <skarp@amazon.com> - 1.2.0-1
+* Tue Jun 02 2015 Samuel Karp <skarp@amazon.com> - 1.2.0-1
 - Update versioning scheme to match Agent version
 - Cache Agent version 1.2.0
 - Mount cgroup and execdriver directories for Telemetry feature
 
-* Mon Jun 1 2015 Samuel Karp <skarp@amazon.com> - 1.0-5
+* Mon Jun 01 2015 Samuel Karp <skarp@amazon.com> - 1.0-5
 - Add support for Docker 1.6.2
 
 * Mon May 11 2015 Samuel Karp <skarp@amazon.com> - 1.0-4
 - Properly restart if the ecs-init package is upgraded in isolation
 
-* Wed May 6 2015 Samuel Karp <skarp@amazon.com> - 1.0-3
+* Wed May 06 2015 Samuel Karp <skarp@amazon.com> - 1.0-3
 - Restart on upgrade if already running
 
-* Tue May 5 2015 Samuel Karp <skarp@amazon.com> - 1.0-2
+* Tue May 05 2015 Samuel Karp <skarp@amazon.com> - 1.0-2
 - Cache Agent version 1.1.0
 - Add support for Docker 1.6.0
 - Force cache load on install/upgrade
@@ -529,5 +620,3 @@ fi
 * Mon Dec 15 2014 Samuel Karp <skarp@amazon.com> - 0.2-1
 - Naive update functionality
 
-* Thu Dec 11 2014 Samuel Karp <skarp@amazon.com> - 0.2-0
-- Initial version

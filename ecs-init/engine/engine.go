@@ -33,23 +33,26 @@ import (
 )
 
 const (
-	terminalSuccessAgentExitCode = 0
-	terminalFailureAgentExitCode = 5
-	upgradeAgentExitCode         = 42
-	serviceStartMinRetryTime     = time.Millisecond * 500
-	serviceStartMaxRetryTime     = time.Second * 15
-	serviceStartRetryJitter      = 0.10
-	serviceStartRetryMultiplier  = 2.0
-	serviceStartMaxRetries       = math.MaxInt64 // essentially retry forever
+	terminalSuccessAgentExitCode  = 0
+	containerFailureAgentExitCode = 2
+	terminalFailureAgentExitCode  = 5
+	upgradeAgentExitCode          = 42
+	serviceStartMinRetryTime      = time.Millisecond * 500
+	serviceStartMaxRetryTime      = time.Second * 15
+	serviceStartRetryJitter       = 0.10
+	serviceStartRetryMultiplier   = 2.0
+	serviceStartMaxRetries        = math.MaxInt64 // essentially retry forever
+	failedContainerLogWindowSize  = "200"         // as string for log config
 )
 
 // Engine contains methods invoked when ecs-init is run
 type Engine struct {
-	downloader            downloader
-	docker                dockerClient
-	loopbackRouting       loopbackRouting
-	credentialsProxyRoute credentialsProxyRoute
-	nvidiaGPUManager      gpu.GPUManager
+	downloader               downloader
+	docker                   dockerClient
+	loopbackRouting          loopbackRouting
+	credentialsProxyRoute    credentialsProxyRoute
+	ipv6RouterAdvertisements ipv6RouterAdvertisements
+	nvidiaGPUManager         gpu.GPUManager
 }
 
 // New creates an instance of Engine
@@ -67,16 +70,21 @@ func New() (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+	ipv6RouterAdvertisements, err := sysctl.NewIpv6RouterAdvertisements(cmdExec)
+	if err != nil {
+		return nil, err
+	}
 	credentialsProxyRoute, err := iptables.NewNetfilterRoute(cmdExec)
 	if err != nil {
 		return nil, err
 	}
 	return &Engine{
-		downloader:            downloader,
-		docker:                docker,
-		loopbackRouting:       loopbackRouting,
-		credentialsProxyRoute: credentialsProxyRoute,
-		nvidiaGPUManager:      gpu.NewNvidiaGPUManager(),
+		downloader:               downloader,
+		docker:                   docker,
+		loopbackRouting:          loopbackRouting,
+		credentialsProxyRoute:    credentialsProxyRoute,
+		ipv6RouterAdvertisements: ipv6RouterAdvertisements,
+		nvidiaGPUManager:         gpu.NewNvidiaGPUManager(),
 	}, nil
 }
 
@@ -84,20 +92,20 @@ func New() (*Engine, error) {
 // to handle credentials requests from containers by rerouting these requests to
 // to the ECS Agent's credentials endpoint
 func (e *Engine) PreStart() error {
-	envVariables := e.docker.LoadEnvVars()
-	if val, ok := envVariables[config.GPUSupportEnvVar]; ok {
-		if val == "true" {
-			err := e.nvidiaGPUManager.Setup()
-			if err != nil {
-				log.Errorf("Nvidia GPU Manager: %v", err)
-				return engineError("Nvidia GPU Manager", err)
-			}
-		}
+	// setup gpu if necessary
+	err := e.PreStartGPU()
+	if err != nil {
+		return err
 	}
 	// Enable use of loopback addresses for local routing purposes
-	err := e.loopbackRouting.Enable()
+	err = e.loopbackRouting.Enable()
 	if err != nil {
 		return engineError("could not enable loopback routing", err)
+	}
+	// Disable ipv6 router advertisements
+	err = e.ipv6RouterAdvertisements.Disable()
+	if err != nil {
+		return engineError("could not disable ipv6 router advertisements", err)
 	}
 	// Add the rerouting netfilter rule for credentials endpoint
 	err = e.credentialsProxyRoute.Create()
@@ -131,6 +139,21 @@ func (e *Engine) PreStart() error {
 	default:
 		return errors.New("could not handle cache state")
 	}
+}
+
+// PreStartGPU sets up the nvidia gpu manager if it's enabled.
+func (e *Engine) PreStartGPU() error {
+	envVariables := e.docker.LoadEnvVars()
+	if val, ok := envVariables[config.GPUSupportEnvVar]; ok {
+		if val == "true" {
+			err := e.nvidiaGPUManager.Setup()
+			if err != nil {
+				log.Errorf("Nvidia GPU Manager: %v", err)
+				return engineError("Nvidia GPU Manager", err)
+			}
+		}
+	}
+	return nil
 }
 
 // ReloadCache reloads the cached image of the ECS Agent into Docker
@@ -200,6 +223,11 @@ func (e *Engine) StartSupervised() error {
 				// continuing here because a successful upgrade doesn't need to backoff retries
 				continue
 			}
+		case containerFailureAgentExitCode:
+			// capture the tail of the failed agent container
+			log.Infof("Captured the last %s lines of the agent container logs====>\n", failedContainerLogWindowSize)
+			log.Info(e.docker.GetContainerLogTail(failedContainerLogWindowSize))
+			log.Infof("<====end %s lines of the failed agent container logs\n", failedContainerLogWindowSize)
 		case terminalFailureAgentExitCode:
 			return errors.New("agent exited with terminal exit code")
 		case terminalSuccessAgentExitCode:
@@ -209,7 +237,6 @@ func (e *Engine) StartSupervised() error {
 		log.Warnf("ECS Agent failed to start, retrying in %s", d)
 		time.Sleep(d)
 	}
-	return nil
 }
 
 func (e *Engine) upgradeAgent() error {
