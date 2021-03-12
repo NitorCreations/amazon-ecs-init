@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.50.2-1
+* Cache Agent version 1.50.2
+
+## 1.50.1-1
+* Cache Agent version 1.50.1
+* Does not restart ECS Agent when it exits with exit code 5
+
+## 1.50.0-1
+* Cache Agent version 1.50.0
+* Allows ECS customers to execute interactive commands inside containers.
+
+## 1.49.0-1
+* Cache Agent version 1.49.0
+* Removes iptable rule that drops packets to port 51678 unconditionally on ecs service stop
+
+## 1.48.1-1
+* Cache Agent version 1.48.1
+
+## 1.48.0-2
+* Cache Agent version 1.48.0
+
+## 1.47.0-1
+* Cache Agent version 1.47.0
+
+## 1.46.0-1
+* Cache Agent version 1.46.0
+
+## 1.45.0-1
+* Cache Agent version 1.45.0
+* Block offhost access to agent's introspection port by default. Configurable via env ECS\_ALLOW\_OFFHOST\_INTROSPECTION\_ACCESS
+
 ## 1.44.4-1
 * Cache Agent version 1.44.4
 

@@ -21,6 +21,7 @@ After=docker.service
 [Service]
 Type=simple
 Restart=on-failure
+RestartPreventExitStatus=5
 RestartSec=10s
 TimeoutStartSec=300
 EnvironmentFile=-/etc/ecs/ecs.config

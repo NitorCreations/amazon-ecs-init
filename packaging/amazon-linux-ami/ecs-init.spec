@@ -32,7 +32,7 @@
 %endif
 
 Name:           ecs-init
-Version:        1.44.4
+Version:        1.50.2
 Release:        1%{?dist}
 License:        Apache 2.0
 Summary:        Amazon Elastic Container Service initialization application
@@ -280,6 +280,37 @@ fi
 %endif
 
 %changelog
+* Fri Feb 19 2021 Meghna Srivastav <mssrivas@amazon.com> - 1.50.2-1
+- Cache Agent version 1.50.2
+
+* Wed Feb 10 2021 Shubham Goyal <shugy@amazon.com> - 1.50.1-1
+- Cache Agent version 1.50.1
+- Does not restart ECS Agent when it exits with exit code 5
+
+* Fri Jan 22 2021 Utsa Bhattacharjya <utsa@amazon.com> - 1.50.0-1
+- Cache Agent version 1.50.0
+- Allows ECS customers to execute interactive commands inside containers.
+
+* Wed Jan 06 2021 Shubham Goyal <shugy@amazon.com> - 1.49.0-1
+- Cache Agent version 1.49.0
+- Removes iptable rule that drops packets to port 51678 unconditionally on ecs service stop
+
+* Mon Nov 23 2020 Shubham Goyal <shugy@amazon.com> - 1.48.1-1
+- Cache Agent version 1.48.1
+
+* Thu Nov 19 2020 Shubham Goyal <shugy@amazon.com> - 1.48.0-2
+- Cache Agent version 1.48.0
+
+* Fri Oct 30 2020 Mythri Garaga Manjunatha <mythr@amazon.com> - 1.47.0-1
+- Cache Agent version 1.47.0
+
+* Fri Oct 16 2020 Meghna Srivastav <mssrivas@amazon.com> - 1.46.0-1
+- Cache Agent version 1.46.0
+
+* Wed Sep 30 2020 Cam Sparr <cssparr@amazon.com> - 1.45.0-1
+- Cache Agent version 1.45.0
+- Block offhost access to agent's introspection port by default. Configurable via env ECS_ALLOW_OFFHOST_INTROSPECTION_ACCESS
+
 * Tue Sep 15 2020 Ray Allan <fierlion@amazon.com> - 1.44.4-1
 - Cache Agent version 1.44.4
 
