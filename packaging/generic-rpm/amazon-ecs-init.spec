@@ -25,11 +25,7 @@
 %endif
 
 Name:           amazon-ecs-init
-<<<<<<< HEAD
-Version:        1.55.2
-=======
 Version:        1.57.1
->>>>>>> upstream/master
 Release:        1
 License:        Apache 2.0
 Summary:        Amazon Elastic Container Service initialization application
@@ -98,8 +94,6 @@ ln -sf %{basename:%{agent_image}} %{_cachedir}/ecs/ecs-agent.tar
 %systemd_postun
 
 %changelog
-<<<<<<< HEAD
-=======
 * Fri Dec 03 2021 Mythri Garaga Mannjunatha <mythr@amazon.com> - 1.57.1-1
 - Cache Agent version 1.57.1
 - Enable AL2 support for ECS-A
@@ -122,7 +116,6 @@ ln -sf %{basename:%{agent_image}} %{_cachedir}/ecs/ecs-agent.tar
 * Thu Sep 16 2021 Mythri Garaga Manjunatha <mythr@amazon.com> - 1.55.3-1
 - Cache Agent version 1.55.3
 
->>>>>>> upstream/master
 * Thu Sep 02 2021 Yinyi Chen <yinyic@amazon.com> - 1.55.2-1
 - Cache Agent version 1.55.2
 
