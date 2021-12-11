@@ -32,7 +32,11 @@
 %endif
 
 Name:           ecs-init
+<<<<<<< HEAD
 Version:        1.55.2
+=======
+Version:        1.57.1
+>>>>>>> upstream/master
 Release:        1%{?dist}
 License:        Apache 2.0
 Summary:        Amazon Elastic Container Service initialization application
@@ -280,6 +284,31 @@ fi
 %endif
 
 %changelog
+<<<<<<< HEAD
+=======
+* Fri Dec 03 2021 Mythri Garaga Mannjunatha <mythr@amazon.com> - 1.57.1-1
+- Cache Agent version 1.57.1
+- Enable AL2 support for ECS-A
+- Initialize docker client lazily
+
+* Wed Nov 03 2021 Feng Xiong <fenxiong@amazon.com> - 1.57.0-1
+- Cache Agent version 1.57.0
+
+* Thu Oct 21 2021 Cameron Sparr <cssparr@amazon.com> - 1.56.0-1
+- Cache Agent version 1.56.0
+
+* Wed Oct 13 2021 Utsa Bhattacharjya <utsa@amazon.com> - 1.55.5-1
+- Cache Agent version 1.55.5
+
+* Thu Sep 30 2021 Ray Allan <fierlion@amazon.com> - 1.55.4-1
+- Cache Agent version 1.55.4
+- GPU updates for ECS Anywhere
+- Introduce new configuration variable ECS_OFFHOST_INTROSPECTION_NAME to specify the primary network interface name to block offhost agent introspection port access.
+
+* Thu Sep 16 2021 Mythri Garaga Manjunatha <mythr@amazon.com> - 1.55.3-1
+- Cache Agent version 1.55.3
+
+>>>>>>> upstream/master
 * Thu Sep 02 2021 Yinyi Chen <yinyic@amazon.com> - 1.55.2-1
 - Cache Agent version 1.55.2
 

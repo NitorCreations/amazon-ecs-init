@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.57.1-1
+* Cache Agent version 1.57.1
+* Enable AL2 support for ECS-A
+* Initialize docker client lazily
+
+## 1.57.0-1
+* Cache Agent version 1.57.0
+
+## 1.56.0-1
+* Cache Agent version 1.56.0
+
+## 1.55.5-1
+* Cache Agent version 1.55.5
+
+## 1.55.4-1
+* Cache Agent version 1.55.4
+* GPU updates for ECS Anywhere
+* Introduce new configuration variable ECS\_OFFHOST\_INTROSPECTION\_NAME to specify the primary network interface name to block offhost agent introspection port access.
+
+## 1.55.3-1
+* Cache Agent version 1.55.3
+
 ## 1.55.2-1
 * Cache Agent version 1.55.2
 

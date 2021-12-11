@@ -1,3 +1,37 @@
+1.57.1-1
+Mythri Garaga Mannjunatha <mythr@amazon.com>
+2021-12-03T10:00:00-08:00
+Cache Agent version 1.57.1
+Enable AL2 support for ECS-A
+Initialize docker client lazily
+
+1.57.0-1
+Feng Xiong <fenxiong@amazon.com>
+2021-11-03T10:00:00-08:00
+Cache Agent version 1.57.0
+
+1.56.0-1
+Cameron Sparr <cssparr@amazon.com>
+2021-10-21T10:00:00-08:00
+Cache Agent version 1.56.0
+
+1.55.5-1
+Utsa Bhattacharjya <utsa@amazon.com>
+2021-10-13T10:00:00-08:00
+Cache Agent version 1.55.5
+
+1.55.4-1
+Ray Allan <fierlion@amazon.com>
+2021-09-30T12:00:00-00:00
+Cache Agent version 1.55.4
+GPU updates for ECS Anywhere
+Introduce new configuration variable ECS_OFFHOST_INTROSPECTION_NAME to specify the primary network interface name to block offhost agent introspection port access.
+
+1.55.3-1
+Mythri Garaga Manjunatha <mythr@amazon.com>
+2021-09-16T12:10:00-08:00
+Cache Agent version 1.55.3
+
 1.55.2-1
 Yinyi Chen <yinyic@amazon.com>
 2021-09-02T14:10:00-08:00
